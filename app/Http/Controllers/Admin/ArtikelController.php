@@ -21,13 +21,17 @@ class ArtikelController extends Controller
 
     public function store(Request $request)
     {
-        $thumbnail = $request->file('thumbnail')->store('artikel', 'public');
-
-        Artikel::create([
-            'judul' => $request->judul,
-            'konten' => $request->konten,
-            'thumbnail' => $thumbnail,
+        $data = $request->validate([
+            'judul' => 'required',
+            'konten' => 'required',
+            'thumbnail' => 'required|image|max:2048',
         ]);
+
+        if ($request->hasFile('thumbnail')) {
+            $data['thumbnail'] = $request->file('thumbnail')->store('artikel', 'public');
+        }
+
+        Artikel::create($data);
 
         return redirect('/admin/artikel')->with('success','Artikel berhasil ditambahkan');
     }
@@ -42,14 +46,19 @@ class ArtikelController extends Controller
     {
         $artikel = Artikel::findOrFail($id);
 
+        $data = $request->validate([
+            'judul' => 'required',
+            'konten' => 'required',
+            'thumbnail' => 'nullable|image|max:2048',
+        ]);
+
         if ($request->hasFile('thumbnail')) {
-            $artikel->thumbnail = $request->file('thumbnail')->store('artikel','public');
+            $data['thumbnail'] = $request->file('thumbnail')->store('artikel', 'public');
+        } else {
+            unset($data['thumbnail']);
         }
 
-        $artikel->update([
-            'judul' => $request->judul,
-            'konten' => $request->konten
-        ]);
+        $artikel->update($data);
 
         return redirect('/admin/artikel')->with('success','Artikel berhasil diupdate');
     }

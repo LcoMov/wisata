@@ -14,4 +14,13 @@ class Wisata extends Model
         'lokasi',
         'foto'
     ];
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function galeri()
+    {
+        return $this->hasMany(WisataGaleri::class, 'wisata_id');
+    }
 }

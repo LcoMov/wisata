@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Wisata;
+use App\Models\WisataGaleri;
+use Illuminate\Support\Facades\Storage;
 
 class WisataController extends Controller
 {
@@ -21,14 +23,26 @@ class WisataController extends Controller
 
     public function store(Request $request)
     {
-        $foto = $request->file('foto')->store('wisata', 'public');
-
-        Wisata::create([
-            'nama' => $request->nama,
-            'deskripsi' => $request->deskripsi,
-            'lokasi' => $request->lokasi,
-            'foto' => $foto,
+        $data = $request->validate([
+            'nama' => 'required',
+            'deskripsi' => 'required',
+            'lokasi' => 'required',
+            'foto' => 'required|image|max:3072',
+            'galeri.*' => 'nullable|image|max:3072',
         ]);
+
+        if ($request->hasFile('foto')) {
+            $data['foto'] = $request->file('foto')->store('wisata', 'public');
+        }
+
+        $wisata = Wisata::create($data);
+
+        if ($request->hasFile('galeri')) {
+            foreach ($request->file('galeri') as $file) {
+                $path = $file->store('wisata/galeri', 'public');
+                $wisata->galeri()->create(['foto' => $path]);
+            }
+        }
 
         return redirect('/admin/wisata')->with('success','Data berhasil ditambahkan');
     }
@@ -42,15 +56,39 @@ class WisataController extends Controller
     public function update(Request $request, $id)
     {
         $wisata = Wisata::findOrFail($id);
+        
+        $data = $request->validate([
+            'nama' => 'required',
+            'deskripsi' => 'required',
+            'lokasi' => 'required',
+            'foto' => 'nullable|image|max:3072',
+            'galeri.*' => 'nullable|image|max:3072',
+        ]);
 
         if ($request->hasFile('foto')) {
-            $foto = $request->file('foto')->store('wisata', 'public');
-            $wisata->foto = $foto;
+            $data['foto'] = $request->file('foto')->store('wisata', 'public');
+        } else {
+            unset($data['foto']);
         }
 
-        $wisata->update($request->only('nama','deskripsi','lokasi'));
+        $wisata->update($data);
+
+        if ($request->hasFile('galeri')) {
+            foreach ($request->file('galeri') as $file) {
+                $path = $file->store('wisata/galeri', 'public');
+                $wisata->galeri()->create(['foto' => $path]);
+            }
+        }
 
         return redirect('/admin/wisata')->with('success','Data berhasil diupdate');
+    }
+
+    public function destroyGaleri($id)
+    {
+        $galeri = WisataGaleri::findOrFail($id);
+        Storage::disk('public')->delete($galeri->foto);
+        $galeri->delete();
+        return back()->with('success', 'Foto galeri berhasil dihapus');
     }
 
     public function destroy($id)
